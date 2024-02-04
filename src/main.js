@@ -4,16 +4,36 @@ import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
 const form = document.querySelector('.search-form');
-const searchButton = document.querySelector('.search-form__btn');
 const container = document.querySelector('.gallery');
+const loaderContainer = document.querySelector('.loader');
 
+loaderContainer.style.display = 'none';
 form.addEventListener('submit', onFormSubmit);
 
 function onFormSubmit(e) {
   e.preventDefault();
-  const quary = e.target.elements.searchQuery.value;
-  searchImages(quary).then(data => renderImages(data));
-  e.target.reset();
+  const query = e.target.elements.searchQuery.value;
+  if (!query) {
+    iziToast.warning({
+      position: 'topRight',
+      message: 'Please enter a search query.',
+    });
+    return;
+  }
+  container.innerHTML = '';
+  loaderContainer.style.display = 'block';
+  searchImages(query)
+    .then(data => renderImages(data))
+    .catch(error =>
+      iziToast.error({
+        position: 'topRight',
+        message: `Error: ${error}`,
+      })
+    )
+    .finally(() => {
+      e.target.reset();
+      loaderContainer.style.display = 'none';
+    });
 }
 
 function searchImages(q) {
@@ -41,7 +61,7 @@ function imageTemplate(images) {
   } = images;
   return `
     <div class="photo-card">
-      <a href="${webformatURL}">
+      <a class="photo-card-link" href="${webformatURL}">
         <img
           class="photo-card__img"
           src="${largeImageURL}" 
@@ -71,11 +91,19 @@ function imageTemplate(images) {
 }
 
 function renderImages({ hits }) {
-  const markup = hits.map(imageTemplate).join('');
-  container.innerHTML = markup;
+  if (hits.length > 0) {
+    const markup = hits.map(imageTemplate).join('');
+    container.insertAdjacentHTML('beforeend', markup);
+    const lightbox = new SimpleLightbox('.photo-card-link', {
+      captionDelay: 250,
+      captionsData: 'alt',
+    });
+    lightbox.refresh();
+  } else {
+    iziToast.error({
+      position: 'topRight',
+      message:
+        'Sorry, there are no images matching your search query. Please try again!',
+    });
+  }
 }
-
-let gallery = new SimpleLightbox('.gallery a', {
-  captionDelay: 250,
-  captionsData: 'alt',
-});
